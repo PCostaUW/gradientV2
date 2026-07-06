@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Gradient — a wavelength-style party game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Righteous&family=Karla:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --bg:#0d1626; --panel:#16233b; --plate:#1d2d4a; --face:#0a111f;
+    --rim:#2f4468; --tick:#7fd8ff; --text:#ecf4f9; --muted:#8ba3bd;
+    --glow:#55e0cc; --needle:#ff6b4a; --knob:#223452;
+    --b4:#ff5c39; --b3:#ffa53a; --b2:#ffd23f;
+    --grad: linear-gradient(90deg,#ffd23f,#ff6b4a,#c86bff,#55b7ff,#55e0cc);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; color:var(--text); font-family:'Karla',sans-serif;
+    background: radial-gradient(circle at 50% -10%, #17294a 0%, var(--bg) 55%);
+    display:flex; justify-content:center; padding:20px 14px 48px; }
+  #app { width:100%; max-width:560px; display:flex; flex-direction:column; gap:16px; }
+  h1 { font-family:'Righteous',cursive; font-size:clamp(34px,8vw,52px); text-align:center; margin:8px 0 0;
+    letter-spacing:2px; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  h2 { font-family:'Righteous',cursive; font-weight:400; letter-spacing:1px; font-size:22px; margin:0; }
+  .sub { text-align:center; color:var(--muted); margin:0; line-height:1.5; }
+  .card { background:var(--panel); border:1px solid var(--rim); border-radius:16px; padding:18px;
+    display:flex; flex-direction:column; gap:12px; }
+  button { font-family:'Karla',sans-serif; font-weight:700; font-size:16px; border-radius:12px;
+    border:1px solid var(--rim); background:var(--plate); color:var(--text);
+    padding:12px 18px; cursor:pointer; transition:transform .08s, background .15s; }
+  button:hover { background:#27395c; } button:active { transform:scale(.97); }
+  button.primary { background:var(--glow); color:#06251f; border-color:transparent;
+    box-shadow:0 0 18px rgba(85,224,204,.35); }
+  button.primary:hover { background:#6ff0dd; }
+  button.primary:disabled { opacity:.45; cursor:not-allowed; box-shadow:none; }
+  button.danger { color:#ff8f75; }
+  button:focus-visible, input:focus-visible { outline:2px solid var(--glow); outline-offset:2px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .grow { flex:1; }
+  input[type=text] { font-family:'Karla'; font-size:16px; background:var(--face); color:var(--text);
+    border:1px solid var(--rim); border-radius:10px; padding:11px 12px; width:100%; }
+  .spectrum { flex-direction:row; justify-content:space-between; font-weight:700; font-size:clamp(15px,4vw,19px); }
+  .spectrum span:first-child { color:var(--b2); } .spectrum span:last-child { color:var(--tick); }
+  .pill { background:var(--face); border:1px solid var(--rim); border-radius:999px;
+    padding:6px 14px; font-size:14px; color:var(--muted); }
+  .pill b { color:var(--text); }
+  .seg { display:flex; border:1px solid var(--rim); border-radius:12px; overflow:hidden; }
+  .seg button { border:none; border-radius:0; flex:1; background:var(--face); }
+  .seg button.on { background:var(--glow); color:#06251f; }
+  .points { font-family:'Righteous'; font-size:52px; text-align:center; margin:4px 0;
+    color:var(--b3); text-shadow:0 0 20px rgba(255,165,58,.4); }
+  .code { font-family:'Righteous'; font-size:44px; letter-spacing:12px; text-align:center;
+    background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .dial { width:100%; height:auto; display:block; filter:drop-shadow(0 6px 24px rgba(0,0,0,.5)); touch-action:none; }
+  .plist { display:flex; flex-direction:column; gap:6px; }
+  .plist .row { background:var(--face); border-radius:10px; padding:8px 12px; justify-content:space-between; }
+  .tag { font-size:12px; color:var(--glow); border:1px solid var(--rim); border-radius:999px; padding:2px 10px; }
+  .check { display:flex; gap:10px; align-items:center; cursor:pointer; background:var(--face);
+    border-radius:10px; padding:10px 12px; font-size:15px; }
+  .check small { color:var(--muted); display:block; }
+  #qr { display:flex; justify-content:center; padding:10px; background:#fff; border-radius:12px; width:fit-content; margin:0 auto; }
+  .hist { display:grid; grid-template-columns:auto 1fr auto; gap:2px 12px; align-items:center;
+    background:var(--face); border-radius:10px; padding:10px 14px; }
+  .hist .who { font-weight:600; } .hist .meta { color:var(--muted); font-size:13px; grid-column:2; }
+  .hist .sc { font-family:'Righteous'; font-size:22px; color:var(--glow); grid-row:1/span 2; }
+  .medal { font-size:20px; grid-row:1/span 2; }
+  .list { display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto; }
+  .list .row { background:var(--face); border-radius:10px; padding:8px 12px; }
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--glow);
+    color:#06251f; font-weight:700; padding:10px 20px; border-radius:999px; opacity:0; transition:opacity .3s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  .err { background:#3a1b1b; border:1px solid #7a3030; border-radius:12px; padding:14px; color:#ffb3a0; font-size:14px; line-height:1.5; }
+  @media (prefers-reduced-motion: reduce){ button{transition:none;} }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, get, set, update, remove, onValue, onDisconnect }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+/* ============================================================
+   1. PASTE YOUR FIREBASE CONFIG HERE  (see README.md, step 2)
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "PASTE_YOURS",
+  authDomain: "PASTE_YOURS.firebaseapp.com",
+  databaseURL: "https://PASTE_YOURS-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "PASTE_YOURS",
+  storageBucket: "PASTE_YOURS.appspot.com",
+  messagingSenderId: "PASTE_YOURS",
+  appId: "PASTE_YOURS"
+};
+
+/* ---------------- Prompt packs ---------------- */
+const PACKS = {
+  classic: { name: "Classic", prompts: [
+    ["Hot","Cold"],["Underrated","Overrated"],["Cheap","Expensive"],["Round","Pointy"],
+    ["Smells bad","Smells good"],["Dry","Wet"],["Loud","Quiet"],["Ancient","Modern"],
+    ["Flimsy","Sturdy"],["Dangerous job","Safe job"],["Scary animal","Cute animal"],
+    ["Easy to spell","Hard to spell"],["Normal thing to own","Weird thing to own"],
+    ["Needs skill","Needs luck"],["For kids","For adults"],["Sport","Not a sport"],
+    ["Vegetable","Fruit"],["Sandwich","Not a sandwich"],["Feels illegal","Feels legal"],
+    ["Good superpower","Useless superpower"] ]},
+  food: { name: "Food & Drink", prompts: [
+    ["Breakfast food","Dinner food"],["Health food","Junk food"],["Snack","Full meal"],
+    ["Better hot","Better cold"],["Delicacy","Barely edible"],["Needs sauce","Ruined by sauce"],
+    ["Good pizza topping","Bad pizza topping"],["Low calorie","High calorie"],
+    ["Better as leftovers","Worse as leftovers"],["Acquired taste","Instantly delicious"],
+    ["Street food","Fine dining"],["Overpriced drink","Fairly priced drink"],
+    ["Comfort food","Fancy food"],["Smells better than it tastes","Tastes better than it smells"],
+    ["Cooking it is easy","Cooking it is hard"],["Kids' menu","Adventurous eater"] ]},
+  pop: { name: "Pop Culture", prompts: [
+    ["Guilty pleasure song","Certified classic"],["Underrated movie","Overrated movie"],
+    ["Villain","Hero"],["Book was better","Movie was better"],["One-hit wonder","Timeless artist"],
+    ["Bingeable","Unwatchable"],["Meme","Art"],["Rewatchable","One and done"],
+    ["Movie you watch alone","Movie you watch with friends"],["Song for a road trip","Song for a funeral"],
+    ["Aged badly","Aged well"],["Style over substance","Substance over style"],
+    ["Cult following","Mainstream hit"],["Deserved the sequel","Should have stopped at one"],
+    ["Karaoke banger","Karaoke suicide"],["Worth the hype","Not worth the hype"] ]},
+  party: { name: "People & Habits", prompts: [
+    ["Red flag","Green flag"],["Ick","Charming"],["Introvert activity","Extrovert activity"],
+    ["Bad habit","Good habit"],["First date activity","Tenth date activity"],
+    ["Socially acceptable","Socially unacceptable"],["Humble brag","Just bragging"],
+    ["Guilty pleasure","Openly love it"],["Dog person thing","Cat person thing"],
+    ["Early bird thing","Night owl thing"],["Small talk topic","Deep talk topic"],
+    ["Chaotic energy","Calm energy"],["High maintenance","Low maintenance"],
+    ["Forgivable","Unforgivable"],["Endearing quirk","Dealbreaker"],["Underpaid job","Overpaid job"] ]},
+  abstract: { name: "Big Ideas", prompts: [
+    ["Art","Science"],["Talent","Practice"],["Progress","Tradition"],["Means well","Does well"],
+    ["Necessary evil","Unnecessary evil"],["Overthinking","Underthinking"],
+    ["Historically important","Historically irrelevant"],["Freedom","Security"],
+    ["Style","Function"],["Optimistic","Realistic"],["Rule to follow","Rule to break"],
+    ["A right","A privilege"],["Worth worrying about","Not worth worrying about"],
+    ["Better in theory","Better in practice"],["Question of taste","Question of fact"],
+    ["Invention","Discovery"] ]},
+};
+const DIFFICULTY = { easy:{label:"Easy",band:8}, normal:{label:"Normal",band:6}, hard:{label:"Hard",band:4} };
+
+/* ---------------- Utilities ---------------- */
+const $ = (sel) => document.querySelector(sel);
+const app = $("#app");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1800); }
+const shuffle = (a) => { a=[...a]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const lsGet = (k,f) => { try { const v=localStorage.getItem(k); return v?JSON.parse(v):f; } catch { return f; } };
+const lsSet = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch{} };
+
+let uid = lsGet("gradient:uid", null);
+if (!uid) { uid = Math.random().toString(36).slice(2,10); lsSet("gradient:uid", uid); }
+let myName = lsGet("gradient:name", "");
+
+/* ---------------- Dial (SVG) ---------------- */
+const CX=220, CY=228, R_OUT=200, R_IN=78;
+const rad = d => d*Math.PI/180;
+const pt = (t,r) => [CX + r*Math.cos(rad(t)), CY - r*Math.sin(rad(t))];
+function sector(t1,t2,ri,ro){
+  const [x1,y1]=pt(t1,ri),[x2,y2]=pt(t1,ro),[x3,y3]=pt(t2,ro),[x4,y4]=pt(t2,ri);
+  const L = t1-t2>180?1:0;
+  return `M ${x1} ${y1} L ${x2} ${y2} A ${ro} ${ro} 0 ${L} 1 ${x3} ${y3} L ${x4} ${y4} A ${ri} ${ri} 0 ${L} 0 ${x1} ${y1} Z`;
+}
+function scoreFor(g,t,band){ const d=Math.abs(g-t); if(d<=band/2)return 4; if(d<=band*1.5)return 3; if(d<=band*2.5)return 2; return 0; }
+
+function dialSVG({needle=90, target=null, band=6, showTarget=false, extraNeedles=[]}) {
+  let bandsHtml = "";
+  if (showTarget && target != null) {
+    const B = [[2.5,1.5,"var(--b2)","2"],[1.5,.5,"var(--b3)","3"],[.5,-.5,"var(--b4)","4"],[-.5,-1.5,"var(--b3)","3"],[-1.5,-2.5,"var(--b2)","2"]];
+    for (const [a,b,c,l] of B) {
+      const t1=Math.min(target+a*band,180), t2=Math.max(target+b*band,0);
+      const [lx,ly]=pt((t1+t2)/2,(R_IN+R_OUT)/2);
+      bandsHtml += `<path d="${sector(t1,t2,R_IN,R_OUT)}" fill="${c}"/>
+        <text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="700" fill="rgba(20,12,4,.75)">${l}</text>`;
+    }
+  }
+  let ticks="";
+  for(let a=0;a<=180;a+=5){ const M=a%15===0; const [x1,y1]=pt(a,R_OUT-(M?16:9)),[x2,y2]=pt(a,R_OUT-2);
+    ticks+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--tick)" stroke-width="${M?2:1}" opacity="${M?.8:.4}"/>`; }
+  let extras="";
+  for (const en of extraNeedles) {
+    const [ex,ey]=pt(en.angle,R_OUT-24);
+    const [tx,ty]=pt(en.angle,R_OUT+4);
+    extras += `<line x1="${CX}" y1="${CY}" x2="${ex}" y2="${ey}" stroke="var(--tick)" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>
+      <text x="${tx}" y="${ty}" text-anchor="middle" font-size="12" fill="var(--tick)">${esc(en.name)}</text>`;
+  }
+  const [nx,ny]=pt(needle,R_OUT-20);
+  return `<svg class="dial" id="dial" viewBox="0 0 440 250" xmlns="http://www.w3.org/2000/svg">
+    <path d="${sector(180,0,R_IN-26,R_OUT+8)}" fill="var(--plate)"/>
+    <path d="${sector(180,0,R_IN,R_OUT)}" fill="var(--face)"/>
+    ${bandsHtml}${ticks}
+    <path d="${sector(180,0,R_IN,R_OUT)}" fill="none" stroke="var(--rim)" stroke-width="3"/>
+    ${extras}
+    <g id="needleG">
+      <line x1="${CX}" y1="${CY}" x2="${nx}" y2="${ny}" stroke="rgba(255,120,80,.35)" stroke-width="12" stroke-linecap="round"/>
+      <line x1="${CX}" y1="${CY}" x2="${nx}" y2="${ny}" stroke="var(--needle)" stroke-width="5" stroke-linecap="round"/>
+    </g>
+    <circle cx="${CX}" cy="${CY}" r="24" fill="var(--knob)" stroke="var(--rim)" stroke-width="3"/>
+    <circle cx="${CX}" cy="${CY}" r="9" fill="var(--needle)"/>
+  </svg>`;
+}
+function attachDial(onChange){
+  const svg = $("#dial"); if(!svg) return;
+  let dragging=false;
+  const angleOf = (e) => {
+    const r=svg.getBoundingClientRect();
+    const x=(e.clientX-r.left)/r.width*440, y=(e.clientY-r.top)/r.height*250;
+    return Math.max(1, Math.min(179, Math.atan2(CY-y, x-CX)*180/Math.PI));
+  };
+  const setN = (a) => {
+    localNeedle=a;
+    const [nx,ny]=pt(a,R_OUT-20);
+    $("#needleG").innerHTML = `<line x1="${CX}" y1="${CY}" x2="${nx}" y2="${ny}" stroke="rgba(255,120,80,.35)" stroke-width="12" stroke-linecap="round"/>
+      <line x1="${CX}" y1="${CY}" x2="${nx}" y2="${ny}" stroke="var(--needle)" stroke-width="5" stroke-linecap="round"/>`;
+    if(onChange) onChange(a);
+  };
+  svg.style.cursor="grab";
+  svg.addEventListener("pointerdown", e=>{ dragging=true; svg.setPointerCapture(e.pointerId); setN(angleOf(e)); });
+  svg.addEventListener("pointermove", e=>{ if(dragging) setN(angleOf(e)); });
+  svg.addEventListener("pointerup", ()=> dragging=false);
+  window._nudge = (d) => setN(Math.max(1,Math.min(179,localNeedle+d)));
+}
+
+/* ---------------- Firebase ---------------- */
+let db=null, configured = firebaseConfig.apiKey !== "PASTE_YOURS";
+if (configured) { try { db = getDatabase(initializeApp(firebaseConfig)); } catch(e){ configured=false; console.error(e); } }
+
+let roomCode=null, room=null, unsub=null, lastScreenKey="";
+let localNeedle=90, submittedAngle=null;
+
+const roomRef = (path="") => ref(db, `rooms/${roomCode}${path?"/"+path:""}`);
+const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const newCode = () => Array.from({length:4},()=>CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]).join("");
+
+function playersSorted(r){ return Object.entries(r.players||{}).map(([id,p])=>({id,...p})).sort((a,b)=>a.joinedAt-b.joinedAt); }
+function buildDeck(settings){
+  let pool=[];
+  for (const k of settings.packs||[]) if (PACKS[k]) pool.push(...PACKS[k].prompts);
+  pool.push(...lsGet("gradient:custom",[]));
+  if (pool.length===0) pool=PACKS.classic.prompts;
+  return shuffle(pool).slice(0, settings.rounds);
+}
+const randTarget = (band) => { const m=2.5*band+3; return Math.round((m+Math.random()*(180-2*m))*10)/10; };
+
+async function createRoom(){
+  for (let tries=0; tries<5; tries++){
+    const code=newCode();
+    const snap=await get(ref(db,`rooms/${code}`));
+    if(!snap.exists()){
+      roomCode=code;
+      await set(roomRef(), { createdAt:Date.now(), hostId:uid, state:"lobby",
+        settings:{rounds:7, difficulty:"normal", packs:["classic","party"], freeform:false},
+        round:0, score:0 });
+      await joinAsPlayer();
+      subscribe();
+      history.replaceState(null,"",`#${code}`);
+      return;
+    }
+  }
+  toast("Couldn't create a room, try again");
+}
+async function joinRoom(code){
+  code=code.toUpperCase().trim();
+  const snap=await get(ref(db,`rooms/${code}`));
+  if(!snap.exists()){ toast("Room not found"); return; }
+  roomCode=code;
+  await joinAsPlayer();
+  subscribe();
+  history.replaceState(null,"",`#${code}`);
+}
+async function joinAsPlayer(){
+  const pRef=roomRef(`players/${uid}`);
+  await set(pRef,{name:myName, joinedAt:Date.now()});
+  onDisconnect(pRef).remove();
+}
+function subscribe(){
+  if(unsub) unsub();
+  unsub = onValue(roomRef(), snap=>{
+    if(!snap.exists()){ leaveLocal(); toast("Room closed"); render(); return; }
+    room = snap.val();
+    render();
+  });
+}
+function leaveLocal(){ if(unsub){unsub();unsub=null;} room=null; roomCode=null; history.replaceState(null,"",location.pathname); }
+async function leaveRoom(){
+  const code=roomCode, wasHost=room && room.hostId===uid;
+  if (code) {
+    await remove(ref(db,`rooms/${code}/players/${uid}`)).catch(()=>{});
+    if (wasHost) await remove(ref(db,`rooms/${code}`)).catch(()=>{});
+  }
+  leaveLocal(); render();
+}
+
+/* ---------------- Game actions (host / psychic) ---------------- */
+const isHost = () => room && room.hostId===uid;
+const psychicOf = (r) => { const ps=playersSorted(r); return ps.length? ps[r.round % ps.length] : null; };
+const amPsychic = () => { const p=psychicOf(room); return p && p.id===uid; };
+
+async function startGame(){
+  const s=room.settings;
+  await update(roomRef(),{
+    state:"clue", round:0, score:0, perfects:0,
+    deck: buildDeck(s),
+    target: randTarget(DIFFICULTY[s.difficulty].band),
+    clue:"", guesses:null, lastPoints:null, avg:null
+  });
+}
+async function submitClue(){
+  const clue = $("#clueIn") ? $("#clueIn").value.trim() : "";
+  const updates={ state:"guess", clue };
+  if (room.settings.freeform){
+    const l=$("#ffL").value.trim(), r=$("#ffR").value.trim();
+    if(!l||!r){ toast("Fill in both ends of the spectrum"); return; }
+    updates[`deck/${room.round}`]=[l,r];
+  }
+  await update(roomRef(), updates);
+}
+async function submitGuess(){
+  submittedAngle=localNeedle;
+  await set(roomRef(`guesses/${uid}`), Math.round(localNeedle*10)/10);
+  toast("Guess locked in");
+}
+async function reveal(){
+  const gs=Object.values(room.guesses||{});
+  if(gs.length===0){ toast("No guesses yet"); return; }
+  const avg=gs.reduce((a,b)=>a+b,0)/gs.length;
+  const band=DIFFICULTY[room.settings.difficulty].band;
+  const pts=scoreFor(avg, room.target, band);
+  await update(roomRef(),{ state:"reveal", avg:Math.round(avg*10)/10, lastPoints:pts,
+    score:(room.score||0)+pts, perfects:(room.perfects||0)+(pts===4?1:0) });
+}
+async function nextRound(){
+  if(room.round+1 >= room.settings.rounds){
+    await update(roomRef(),{state:"gameover"});
+  } else {
+    await update(roomRef(),{ state:"clue", round:room.round+1, guesses:null, clue:"",
+      target:randTarget(DIFFICULTY[room.settings.difficulty].band), lastPoints:null, avg:null });
+  }
+}
+async function playAgain(){ await startGame(); }
+
+/* ---------------- Local history ---------------- */
+let savedGameKey="";
+function maybeSaveHistory(){
+  const key=`${roomCode}:${room.createdAt}:${room.round}:${room.score}`;
+  if(room.state!=="gameover" || savedGameKey===key) return;
+  savedGameKey=key;
+  const h=lsGet("gradient:history",[]);
+  h.unshift({ date:new Date().toISOString().slice(0,10),
+    players:playersSorted(room).map(p=>p.name),
+    score:room.score||0, max:room.settings.rounds*4,
+    rounds:room.settings.rounds, difficulty:DIFFICULTY[room.settings.difficulty].label,
+    perfects:room.perfects||0 });
+  lsSet("gradient:history", h.slice(0,100));
+}
+
+/* ---------------- Rendering ---------------- */
+function header(){ return `<h1>GRADIENT</h1>`; }
+function roomBar(){
+  const ps=playersSorted(room);
+  return `<div class="row" style="justify-content:center">
+    <span class="pill">Room <b>${roomCode}</b></span>
+    <span class="pill">Round <b>${room.round+1}/${room.settings.rounds}</b></span>
+    <span class="pill">Score <b>${room.score||0}</b></span>
+    <span class="pill">${ps.length} player${ps.length===1?"":"s"}</span>
+  </div>`;
+}
+function spectrumBar(){
+  const p=(room.deck&&room.deck[room.round])||["?","?"];
+  return `<div class="card spectrum"><span>◀ ${esc(p[0])}</span><span>${esc(p[1])} ▶</span></div>`;
+}
+
+function render(){
+  maybeSaveHistory && room && maybeSaveHistory();
+  const screenKey = room ? `${room.state}:${room.round}:${amPsychic()}:${isHost()}` : `home:${configured}`;
+  if (room && room.state==="guess" && screenKey===lastScreenKey){ patchGuess(); return; }
+  if (room && room.state==="lobby" ) { /* lobby always rerenders (no text inputs) */ }
+  else if (screenKey===lastScreenKey && room && room.state==="clue"){ patchClue(); return; }
+  lastScreenKey=screenKey;
+
+  if(!configured){ app.innerHTML = header()+`
+    <div class="err"><b>Almost there — Firebase isn't configured yet.</b><br>
+    Open <code>index.html</code>, find the <code>firebaseConfig</code> block near the top,
+    and paste in your project's config. Full walkthrough in <code>README.md</code>.</div>`;
+    return; }
+
+  if(!room){ renderHome(); return; }
+  switch(room.state){
+    case "lobby": renderLobby(); break;
+    case "clue": renderClue(); break;
+    case "guess": renderGuess(); break;
+    case "reveal": renderReveal(); break;
+    case "gameover": renderGameover(); break;
+  }
+}
+
+/* ----- Home / join ----- */
+function renderHome(){
+  const hashCode=(location.hash||"").replace("#","").toUpperCase();
+  app.innerHTML = header()+`
+    <p class="sub">Read your friends' minds on a spectrum.</p>
+    <div class="card">
+      <input type="text" id="nameIn" placeholder="Your name" maxlength="16" value="${esc(myName)}">
+      <button class="primary" id="btnCreate">Create a room</button>
+      <div class="row">
+        <input type="text" id="codeIn" class="grow" placeholder="Room code" maxlength="4"
+          style="text-transform:uppercase; letter-spacing:6px; text-align:center" value="${esc(hashCode)}">
+        <button id="btnJoin">Join</button>
+      </div>
+    </div>
+    <div class="card">
+      <button id="btnPrompts">My custom prompts (${lsGet("gradient:custom",[]).length})</button>
+      <button id="btnHistory">High scores</button>
+    </div>
+    <div class="card" style="color:var(--muted); font-size:14px; line-height:1.5">
+      <b style="color:var(--text)">How it plays:</b> each round one player (the psychic) secretly sees a
+      target on the dial and gives a clue that sits at that point between two extremes. Everyone else
+      turns their dial to where they think the target is. The team scores on the average guess — bullseye is 4 points.
+    </div>`;
+  const requireName = () => {
+    myName = $("#nameIn").value.trim();
+    if(!myName){ toast("Enter your name first"); return false; }
+    lsSet("gradient:name", myName); return true;
+  };
+  $("#btnCreate").onclick = () => requireName() && createRoom();
+  $("#btnJoin").onclick = () => requireName() && joinRoom($("#codeIn").value);
+  $("#btnPrompts").onclick = renderPromptManager;
+  $("#btnHistory").onclick = renderHistory;
+  if (hashCode.length===4) $("#nameIn").focus();
+}
+
+/* ----- Custom prompts ----- */
+function renderPromptManager(){
+  const custom=lsGet("gradient:custom",[]);
+  app.innerHTML = header()+`
+    <div class="card">
+      <h2>My custom prompts</h2>
+      <p class="sub" style="text-align:left">These live in this browser and get shuffled into any game you host. Inside jokes make the best spectrums.</p>
+      <div class="row">
+        <input type="text" id="pL" class="grow" placeholder="Left extreme">
+        <input type="text" id="pR" class="grow" placeholder="Right extreme">
+        <button class="primary" id="pAdd">Add</button>
+      </div>
+      <div class="list">
+        ${custom.length===0?`<p class="sub">Nothing here yet.</p>`:custom.map((p,i)=>`
+          <div class="row"><span class="grow">${esc(p[0])} ↔ ${esc(p[1])}</span>
+          <button class="danger" data-del="${i}">✕</button></div>`).join("")}
+      </div>
+      <button id="pBack">Back</button>
+    </div>`;
+  $("#pAdd").onclick = () => {
+    const l=$("#pL").value.trim(), r=$("#pR").value.trim();
+    if(!l||!r) return;
+    lsSet("gradient:custom",[...lsGet("gradient:custom",[]),[l,r]]);
+    renderPromptManager();
+  };
+  app.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
+    const c=lsGet("gradient:custom",[]); c.splice(+b.dataset.del,1); lsSet("gradient:custom",c); renderPromptManager();
+  });
+  $("#pBack").onclick = render;
+}
+
+/* ----- History ----- */
+function renderHistory(){
+  const h=[...lsGet("gradient:history",[])].sort((a,b)=>b.score/b.max - a.score/a.max);
+  app.innerHTML = header()+`
+    <div class="card">
+      <h2>High scores</h2>
+      ${h.length===0?`<p class="sub">No games recorded yet. Go play one!</p>`:h.slice(0,20).map((g,i)=>`
+        <div class="hist">
+          <span class="medal">${i===0?"🥇":i===1?"🥈":i===2?"🥉":"·"}</span>
+          <span class="who">${esc(g.players.join(", "))}</span>
+          <span class="sc">${g.score}/${g.max}</span>
+          <span class="meta">${g.date} · ${g.rounds} rounds · ${g.difficulty} · ${g.perfects} bullseyes</span>
+        </div>`).join("")}
+      ${h.length?`<button class="danger" id="hClear">Clear history</button>`:""}
+      <button id="hBack">Back</button>
+    </div>`;
+  if($("#hClear")) $("#hClear").onclick=()=>{ lsSet("gradient:history",[]); renderHistory(); };
+  $("#hBack").onclick = render;
+}
+
+/* ----- Lobby ----- */
+function renderLobby(){
+  const s=room.settings, ps=playersSorted(room), host=isHost();
+  const link=`${location.origin}${location.pathname}#${roomCode}`;
+  app.innerHTML = header()+`
+    <div class="card" style="text-align:center">
+      <div class="code">${roomCode}</div>
+      <p class="sub">Friends join at this page with the code — or just send them the link.</p>
+      <div class="row" style="justify-content:center">
+        <button id="btnCopy">Copy invite link</button>
+        <button id="btnQR">QR code</button>
+      </div>
+      <div id="qrWrap" style="display:none"><div id="qr"></div></div>
+    </div>
+    <div class="card">
+      <h2>Players</h2>
+      <div class="plist">${ps.map(p=>`<div class="row"><span>${esc(p.name)}</span>
+        <span>${p.id===room.hostId?`<span class="tag">host</span>`:""}${p.id===uid?` <span class="tag">you</span>`:""}</span></div>`).join("")}</div>
+    </div>
+    <div class="card">
+      <h2>Settings ${host?"":"<span class='tag'>host decides</span>"}</h2>
+      ${host?`
+        <div class="seg">${[5,7,10].map(n=>`<button data-rounds="${n}" class="${s.rounds===n?"on":""}">${n} rounds</button>`).join("")}</div>
+        <div class="seg">${Object.entries(DIFFICULTY).map(([k,v])=>`<button data-diff="${k}" class="${s.difficulty===k?"on":""}">${v.label}</button>`).join("")}</div>
+        ${Object.entries(PACKS).map(([k,v])=>`
+          <label class="check"><input type="checkbox" data-pack="${k}" ${ (s.packs||[]).includes(k)?"checked":""}>
+          <span>${v.name} <small>${v.prompts.length} prompts</small></span></label>`).join("")}
+        <label class="check"><input type="checkbox" id="ffToggle" ${s.freeform?"checked":""}>
+          <span>Freeform mode <small>the psychic types a fresh spectrum each round instead of drawing from packs</small></span></label>
+        <p class="sub" style="text-align:left">Your ${lsGet("gradient:custom",[]).length} custom prompts are always shuffled in.</p>
+        <button class="primary" id="btnStart" ${ps.length<2?"disabled":""}>${ps.length<2?"Waiting for at least 2 players…":"Start game"}</button>
+      `:`
+        <p class="sub" style="text-align:left">${s.rounds} rounds · ${DIFFICULTY[s.difficulty].label} ·
+        ${(s.packs||[]).map(k=>PACKS[k]?.name).filter(Boolean).join(", ")||"custom only"}${s.freeform?" · Freeform":""}</p>
+        <p class="sub">Waiting for the host to start…</p>`}
+    </div>
+    <button class="danger" id="btnLeave">Leave room</button>`;
+  $("#btnCopy").onclick = async ()=>{ try{ await navigator.clipboard.writeText(link); toast("Link copied"); }catch{ prompt("Copy this link:", link); } };
+  $("#btnQR").onclick = ()=>{ const w=$("#qrWrap"); w.style.display=w.style.display==="none"?"block":"none";
+    if(!$("#qr").hasChildNodes()) new QRCode($("#qr"),{text:link,width:160,height:160}); };
+  $("#btnLeave").onclick = leaveRoom;
+  if(host){
+    app.querySelectorAll("[data-rounds]").forEach(b=>b.onclick=()=>update(roomRef("settings"),{rounds:+b.dataset.rounds}));
+    app.querySelectorAll("[data-diff]").forEach(b=>b.onclick=()=>update(roomRef("settings"),{difficulty:b.dataset.diff}));
+    app.querySelectorAll("[data-pack]").forEach(b=>b.onchange=()=>{
+      let packs=[...(room.settings.packs||[])];
+      if(b.checked) packs.push(b.dataset.pack); else packs=packs.filter(k=>k!==b.dataset.pack);
+      update(roomRef("settings"),{packs});
+    });
+    $("#ffToggle").onchange=(e)=>update(roomRef("settings"),{freeform:e.target.checked});
+    $("#btnStart").onclick=startGame;
+  }
+}
+
+/* ----- Clue phase ----- */
+function renderClue(){
+  const psychic=psychicOf(room);
+  if(amPsychic()){
+    const band=DIFFICULTY[room.settings.difficulty].band;
+    app.innerHTML = header()+roomBar()+
+      (room.settings.freeform ? `<div class="card">
+          <h2>Write this round's spectrum</h2>
+          <div class="row"><input type="text" id="ffL" class="grow" placeholder="Left extreme">
+          <input type="text" id="ffR" class="grow" placeholder="Right extreme"></div>
+        </div>` : spectrumBar())+
+      dialSVG({target:room.target, band, showTarget:true, needle:room.target})+`
+      <div class="card">
+        <p class="sub">Only you can see this. Think of a clue that lives exactly at the target.</p>
+        <input type="text" id="clueIn" placeholder="Type your clue (or say it out loud and leave blank)" maxlength="60">
+        <button class="primary" id="btnClue">Send clue — start guessing</button>
+      </div>`;
+    $("#btnClue").onclick=submitClue;
+  } else {
+    app.innerHTML = header()+roomBar()+
+      (room.settings.freeform?"":spectrumBar())+`
+      <div class="card" style="text-align:center">
+        <h2><span style="color:var(--glow)">${esc(psychic?.name||"The psychic")}</span> is peeking at the target…</h2>
+        <p class="sub" id="waitSub">Get ready to read their mind.</p>
+      </div>`;
+  }
+}
+function patchClue(){ /* nothing dynamic needed while waiting */ }
+
+/* ----- Guess phase ----- */
+function renderGuess(){
+  const psychic=psychicOf(room);
+  const band=DIFFICULTY[room.settings.difficulty].band;
+  const clueLine = room.clue ? `<div class="card" style="text-align:center"><h2>“${esc(room.clue)}”</h2>
+      <p class="sub">— ${esc(psychic?.name)}</p></div>`
+    : `<div class="card" style="text-align:center"><p class="sub">Listen to ${esc(psychic?.name)}'s clue, then dial it in.</p></div>`;
+  if(amPsychic()){
+    app.innerHTML = header()+roomBar()+spectrumBar()+
+      dialSVG({target:room.target, band, showTarget:true, needle:room.target})+`
+      <div class="card" style="text-align:center">
+        <p class="sub" id="gCount">Waiting for guesses…</p>
+        <button class="primary" id="btnReveal">Reveal</button>
+      </div>`;
+    $("#btnReveal").onclick=reveal;
+  } else {
+    localNeedle = submittedAngle ?? 90;
+    app.innerHTML = header()+roomBar()+spectrumBar()+clueLine+
+      dialSVG({needle:localNeedle})+`
+      <div class="card">
+        <div class="row" style="justify-content:center">
+          <button style="font-size:20px;padding:8px 16px" onclick="_nudge(0.5)">◀</button>
+          <button class="primary grow" id="btnGuess">Lock in guess</button>
+          <button style="font-size:20px;padding:8px 16px" onclick="_nudge(-0.5)">▶</button>
+        </div>
+        <p class="sub" id="gCount"></p>
+      </div>`;
+    attachDial();
+    $("#btnGuess").onclick=submitGuess;
+  }
+  patchGuess();
+}
+function patchGuess(){
+  const el=$("#gCount"); if(!el) return;
+  const total=playersSorted(room).length-1;
+  const got=Object.keys(room.guesses||{}).length;
+  el.textContent = `${got}/${total} guess${total===1?"":"es"} locked in`;
+  if (room.guesses && room.guesses[uid]!=null) submittedAngle=room.guesses[uid];
+}
+
+/* ----- Reveal ----- */
+function renderReveal(){
+  const band=DIFFICULTY[room.settings.difficulty].band;
+  const names=Object.fromEntries(playersSorted(room).map(p=>[p.id,p.name]));
+  const extras=Object.entries(room.guesses||{}).map(([id,a])=>({name:names[id]||"?",angle:a}));
+  const pts=room.lastPoints||0;
+  app.innerHTML = header()+roomBar()+spectrumBar()+
+    dialSVG({target:room.target, band, showTarget:true, needle:room.avg??90, extraNeedles:extras})+`
+    <div class="card" style="text-align:center">
+      <div class="points">${pts===4?"BULLSEYE! +4":"+"+pts}</div>
+      <p class="sub">Big needle = team average. Thin needles = everyone's guess.</p>
+      ${isHost()?`<button class="primary" id="btnNext">${room.round+1>=room.settings.rounds?"Finish game":"Next round"}</button>`
+        :`<p class="sub">Waiting for the host…</p>`}
+    </div>`;
+  if($("#btnNext")) $("#btnNext").onclick=nextRound;
+}
+
+/* ----- Game over ----- */
+function renderGameover(){
+  const max=room.settings.rounds*4, sc=room.score||0, r=sc/max;
+  app.innerHTML = header()+`
+    <div class="card" style="text-align:center">
+      <h2>Final score</h2>
+      <div class="points">${sc} / ${max}</div>
+      <p class="sub">${playersSorted(room).map(p=>esc(p.name)).join(", ")} · ${room.perfects||0} bullseye${(room.perfects||0)===1?"":"s"}</p>
+      <p class="sub">${r>=0.8?"Telepathic. Genuinely suspicious.":r>=0.6?"You're on the same wavelength.":r>=0.4?"Some frequencies got crossed.":"Complete radio silence out there."}</p>
+      ${isHost()?`<button class="primary" id="btnAgain">Play again (same room)</button>`:`<p class="sub">Host can restart the room.</p>`}
+      <button id="btnScores">High scores</button>
+      <button class="danger" id="btnLeave2">Leave room</button>
+    </div>`;
+  if($("#btnAgain")) $("#btnAgain").onclick=playAgain;
+  $("#btnScores").onclick=renderHistory;
+  $("#btnLeave2").onclick=leaveRoom;
+}
+
+/* ---------------- Boot ---------------- */
+render();
+</script>
+</body>
+</html>
